@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Typing Time</title>
+    <style>
+        :root {
+            --left-color: hsl(210, 100%, 90%);
+            --right-color: hsl(40, 100%, 90%);
+            --either-color: hsl(125, 100%, 90%);
+
+            /* An approximation of the icon stroke width */
+            --stroke-width: 3px;
+        }
+
+        html {
+            height: 100%;
+        }
+
+        body {
+            font-family: system-ui;
+            display: grid;
+            grid-template-rows: min-content min-content 1fr min-content;
+            height: 100%;
+            margin: 0;
+        }
+
+        header {
+            align-items: center;
+            border-block-end: var(--stroke-width) solid black;
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem;
+
+            h1 {
+                margin: 0;
+                font-size: 1rem;
+            }
+        }
+
+        form {
+            align-items: center;
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        fieldset {
+            align-items: center;
+            display: inline-flex;
+            border: calc(var(--stroke-width)/2) solid hsla(0, 0%, 0%, 0.5);
+            gap: 1rem;
+            margin: 0;
+            padding: 0.25rem;
+            padding-inline-end: 0.5rem;
+        }
+
+        section#hud {
+            align-items: center;
+            border-block-end: var(--stroke-width) solid black;
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.5rem;
+        }
+
+        main {
+            background-color: hsl(125, 5%, 95%);
+            position: relative
+        }
+
+        @keyframes subtleShake {
+            0% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-1px);
+            }
+
+            50% {
+                transform: translateX(1px);
+            }
+
+            75% {
+                transform: translateX(-1px);
+            }
+
+            100% {
+                transform: translateX(0);
+            }
+        }
+
+        #word {
+            align-items: center;
+            display: flex;
+            font-size: 3rem;
+            gap: 0.5ch;
+            height: 100%;
+            justify-content: center;
+
+            span {
+                align-items: center;
+                border: var(--stroke-width) solid black;
+                border-block-end-width: calc(var(--stroke-width) * 2);
+                border-radius: calc(var(--stroke-width) * 3);
+                display: flex;
+                height: 3ex;
+                justify-content: center;
+                width: 2ch;
+
+                &[data-hand="left"] {
+                    background-color: var(--left-color);
+                }
+
+                &[data-hand="right"] {
+                    background-color: var(--right-color);
+                }
+
+                &[data-hand="either"] {
+                    background-color: hsl(125, 100%, 90%);
+                }
+
+                &[data-status="current"] {
+                    outline: var(--stroke-width) solid black;
+                    outline-offset: var(--stroke-width);
+                }
+
+                &[data-status="correct"] {
+                    opacity: 0.5;
+                }
+
+                &[data-wrong] {
+                    animation: subtleShake 0.2s ease-in-out;
+                    outline-color: red;
+                }
+            }
+        }
+
+        @keyframes subtleEnterUp {
+            0% {
+                transform: translateY(50%);
+                opacity: 0;
+            }
+
+            100% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        #message {
+            position: absolute;
+            bottom: 1rem;
+            text-align: center;
+            width: 100%;
+
+            &:not(:empty) {
+                animation: subtleEnterUp 0.2s ease-in;
+            }
+        }
+
+        footer {
+            align-items: center;
+            border-block-start: var(--stroke-width) solid black;
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem;
+        }
+
+        #left-hand {
+            transform: scaleX(-1)
+        }
+
+        body:not(:has(input[name="show-keyboard"]:checked)) {
+
+            #keyboard,
+            label:has(input[name="show-hints"]) {
+                display: none;
+            }
+        }
+
+        body:has(input[name="show-keyboard"]:checked):has(input[name="show-hints"]:checked) {
+
+            kbd.hint {
+                /* box-shadow: 0 1px 1px hsla(0, 0%, 0%, 0.75); */
+                box-shadow: 0 0 4px 4px white;
+                transform: scale(1.1);
+            }
+        }
+
+        #keyboard {
+            --_gap: 0.125rem;
+            --_key-size: 14px;
+            display: grid;
+            gap: var(--_gap);
+            max-width: calc(20 * var(--_key-size));
+            width: 100%;
+
+            .row {
+                display: flex;
+                gap: var(--_gap);
+            }
+
+            kbd {
+                align-items: center;
+                border: 1px solid black;
+                border-radius: 2px;
+                display: inline-flex;
+                height: var(--_key-size);
+                font-size: xx-small;
+                justify-content: center;
+                width: var(--_key-size);
+
+                &.grow {
+                    flex-grow: 1;
+                }
+
+                &.left {
+                    background-color: var(--left-color);
+                }
+
+                &.right {
+                    background-color: var(--right-color);
+                }
+
+                &.either {
+                    background-color: var(--either-color);
+                }
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Typing Time</h1>
+        <form>
+            <fieldset aria-label="Levels">
+                <label>
+                    <input type="checkbox" name="level" value="GRADE_ONE" checked>
+                    1
+                </label>
+                <label>
+                    <input type="checkbox" name="level" value="GRADE_TWO">
+                    2
+                </label>
+                <label>
+                    <input type="checkbox" name="level" value="GRADE_THREE">
+                    3
+                </label>
+                <label>
+                    <input type="checkbox" name="level" value="GRADE_FOUR">
+                    4
+                </label>
+                <label>
+                    <input type="checkbox" name="level" value="GRADE_FIVE">
+                    5
+                </label>
+            </fieldset>
+            <label>
+                <input type="checkbox" name="show-keyboard">
+                Show Keyboard
+            </label>
+            <label>
+                <input type="checkbox" name="show-hints">
+                Show Hints
+            </label>
+        </form>
+    </header>
+    <section id="hud" role="status">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#000000" viewBox="0 0 256 256">
+            <path
+                d="M208,144a80,80,0,0,1-160,0c0-30.57,14.42-58.26,31-80l33,32,26.27-72C159.86,41.92,208,88.15,208,144Z"
+                opacity="0.2"></path>
+            <path
+                d="M143.38,17.85a8,8,0,0,0-12.63,3.41l-22,60.41L84.59,58.26a8,8,0,0,0-11.93.89C51,87.53,40,116.08,40,144a88,88,0,0,0,176,0C216,84.55,165.21,36,143.38,17.85ZM128,216a72.08,72.08,0,0,1-72-72c0-22,8.09-44.79,24.06-67.84l26.37,25.58a8,8,0,0,0,13.09-3l22.27-61.07C164.21,58.08,200,97.91,200,144A72.08,72.08,0,0,1,128,216Z">
+            </path>
+        </svg>
+        <div id="words">Words: –</div>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#000000" viewBox="0 0 256 256"
+            style="margin-inline-start: auto;">
+            <path d="M176,128a48,48,0,1,1-48-48A48,48,0,0,1,176,128Z" opacity="0.2"></path>
+            <path
+                d="M221.87,83.16A104.1,104.1,0,1,1,195.67,49l22.67-22.68a8,8,0,0,1,11.32,11.32l-96,96a8,8,0,0,1-11.32-11.32l27.72-27.72a40,40,0,1,0,17.87,31.09,8,8,0,1,1,16-.9,56,56,0,1,1-22.38-41.65L184.3,60.39a87.88,87.88,0,1,0,23.13,29.67,8,8,0,0,1,14.44-6.9Z">
+            </path>
+        </svg>
+        <div id="accuracy">Accuracy: –</div>
+    </section>
+    <main>
+        <div id="word"></div>
+        <section id="message" aria-live="polite">
+            <b>Blue</b> letters with your <b>left hand</b>, and <b>yellow</b> letters with your <b>right hand</b>.
+        </section>
+    </main>
+    <footer>
+        <svg xmlns="http://www.w3.org/2000/svg" id="left-hand" width="96" height="96" fill="#000000"
+            viewBox="0 0 256 256">
+            <path
+                d="M208,76v76a80,80,0,0,1-80,80c-44.18,0-60.75-21.28-93.32-90a20,20,0,0,1,34.64-20L88,152V60a20,20,0,0,1,40,0V44a20,20,0,0,1,40,0V76a20,20,0,0,1,40,0Z"
+                fill="var(--left-color)"></path>
+            <path
+                d="M188,48a27.75,27.75,0,0,0-12,2.71V44a28,28,0,0,0-54.65-8.6A28,28,0,0,0,80,60v64l-3.82-6.13a28,28,0,0,0-48.6,27.82c16,33.77,28.93,57.72,43.72,72.69C86.24,233.54,103.2,240,128,240a88.1,88.1,0,0,0,88-88V76A28,28,0,0,0,188,48Zm12,104a72.08,72.08,0,0,1-72,72c-20.38,0-33.51-4.88-45.33-16.85C69.44,193.74,57.26,171,41.9,138.58a6.36,6.36,0,0,0-.3-.58,12,12,0,0,1,20.79-12,1.76,1.76,0,0,0,.14.23l18.67,30A8,8,0,0,0,96,152V60a12,12,0,0,1,24,0v60a8,8,0,0,0,16,0V44a12,12,0,0,1,24,0v76a8,8,0,0,0,16,0V76a12,12,0,0,1,24,0Z">
+            </path>
+        </svg>
+        <div id="keyboard">
+            <div class="row">
+                <kbd class="left">`</kbd>
+                <kbd class="left">1</kbd>
+                <kbd class="left">2</kbd>
+                <kbd class="left">3</kbd>
+                <kbd class="left">4</kbd>
+                <kbd class="left">5</kbd>
+                <kbd class="either">6</kbd>
+                <kbd class="right">7</kbd>
+                <kbd class="right">8</kbd>
+                <kbd class="right">9</kbd>
+                <kbd class="right">0</kbd>
+                <kbd class="right">-</kbd>
+                <kbd class="right">=</kbd>
+                <kbd class="grow right">del</kbd>
+            </div>
+            <div class="row">
+                <kbd class="grow left">tab</kbd>
+                <kbd class="left">q</kbd>
+                <kbd class="left">w</kbd>
+                <kbd class="left">e</kbd>
+                <kbd class="left">r</kbd>
+                <kbd class="left">t</kbd>
+                <kbd class="right">y</kbd>
+                <kbd class="right">u</kbd>
+                <kbd class="right">i</kbd>
+                <kbd class="right">o</kbd>
+                <kbd class="right">p</kbd>
+                <kbd class="right">[</kbd>
+                <kbd class="right">]</kbd>
+                <kbd class="right">\</kbd>
+            </div>
+            <div class="row">
+                <kbd class="grow left">caps</kbd>
+                <kbd class="left">a</kbd>
+                <kbd class="left">s</kbd>
+                <kbd class="left">d</kbd>
+                <kbd class="left">f</kbd>
+                <kbd class="left">g</kbd>
+                <kbd class="right">h</kbd>
+                <kbd class="right">j</kbd>
+                <kbd class="right">k</kbd>
+                <kbd class="right">l</kbd>
+                <kbd class="right">;</kbd>
+                <kbd class="right">'</kbd>
+                <kbd class="grow right">enter</kbd>
+            </div>
+            <div class="row">
+                <kbd class="grow left">shift</kbd>
+                <kbd class="left">z</kbd>
+                <kbd class="left">x</kbd>
+                <kbd class="left">c</kbd>
+                <kbd class="left">v</kbd>
+                <kbd class="either">b</kbd>
+                <kbd class="right">n</kbd>
+                <kbd class="right">m</kbd>
+                <kbd class="right">,</kbd>
+                <kbd class="right">.</kbd>
+                <kbd class="right">/</kbd>
+                <kbd class="grow right">shift</kbd>
+            </div>
+            <div class="row">
+                <kbd class="left">&nbsp;&nbsp;</kbd>
+                <kbd class="left">&nbsp;&nbsp;</kbd>
+                <kbd class="left">&nbsp;&nbsp;</kbd>
+                <kbd class="grow either">space</kbd>
+                <kbd class="right">&nbsp;&nbsp;</kbd>
+                <kbd class="right">&nbsp;&nbsp;</kbd>
+                <kbd class="right">&nbsp;&nbsp;</kbd>
+            </div>
+        </div>
+        <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" fill="#000000" viewBox="0 0 256 256">
+            <path
+                d="M208,76v76a80,80,0,0,1-80,80c-44.18,0-60.75-21.28-93.32-90a20,20,0,0,1,34.64-20L88,152V60a20,20,0,0,1,40,0V44a20,20,0,0,1,40,0V76a20,20,0,0,1,40,0Z"
+                fill="var(--right-color)"></path>
+            <path
+                d="M188,48a27.75,27.75,0,0,0-12,2.71V44a28,28,0,0,0-54.65-8.6A28,28,0,0,0,80,60v64l-3.82-6.13a28,28,0,0,0-48.6,27.82c16,33.77,28.93,57.72,43.72,72.69C86.24,233.54,103.2,240,128,240a88.1,88.1,0,0,0,88-88V76A28,28,0,0,0,188,48Zm12,104a72.08,72.08,0,0,1-72,72c-20.38,0-33.51-4.88-45.33-16.85C69.44,193.74,57.26,171,41.9,138.58a6.36,6.36,0,0,0-.3-.58,12,12,0,0,1,20.79-12,1.76,1.76,0,0,0,.14.23l18.67,30A8,8,0,0,0,96,152V60a12,12,0,0,1,24,0v60a8,8,0,0,0,16,0V44a12,12,0,0,1,24,0v76a8,8,0,0,0,16,0V76a12,12,0,0,1,24,0Z">
+            </path>
+        </svg>
+    </footer>
+</body>
+
+<script type="module">
+    const wordEl = document.getElementById('word');
+    import * as words from './words.js';
+    const keyToHand = {
+        "a": "left",
+        "b": "either",
+        "c": "left",
+        "d": "left",
+        "e": "left",
+        "f": "left",
+        "g": "left",
+        "h": "right",
+        "i": "right",
+        "j": "right",
+        "k": "right",
+        "l": "right",
+        "m": "right",
+        "n": "right",
+        "o": "right",
+        "p": "right",
+        "q": "left",
+        "r": "left",
+        "s": "left",
+        "t": "left",
+        "u": "right",
+        "v": "left",
+        "w": "left",
+        "x": "left",
+        "y": "right",
+        "z": "left",
+        "space": "either",
+        "'": "right",
+    }
+
+    function renderWord(word) {
+        wordEl.textContent = "";
+        for (let i = 0; i < word.length; i++) {
+            const span = document.createElement('span');
+            span.textContent = word[i];
+            span.dataset.hand = keyToHand[word[i].toLowerCase()] || 'either';
+            if (i === 0) {
+                span.dataset.status = "current";
+            }
+            wordEl.appendChild(span);
+        }
+    }
+
+    let currentWord = "Type";
+
+    renderWord(currentWord);
+
+    const wordHistory = [];
+
+    function getNewWord() {
+        const selectedLevels = new Map();
+        document.querySelectorAll('input[name="level"]:checked').forEach(input => {
+            selectedLevels.set(input.value, true);
+        });
+        const options = [
+            ...(selectedLevels.has('GRADE_ONE') || selectedLevels.size === 0 ? words.GRADE_ONE : []),
+            ...(selectedLevels.has('GRADE_TWO') ? words.GRADE_TWO : []),
+            ...(selectedLevels.has('GRADE_THREE') ? words.GRADE_THREE : []),
+            ...(selectedLevels.has('GRADE_FOUR') ? words.GRADE_FOUR : []),
+            ...(selectedLevels.has('GRADE_FIVE') ? words.GRADE_FIVE : [])
+        ];
+
+        if (options.length === 0) {
+            options.push(...words.GRADE_ONE);
+        }
+        let newWord;
+        do {
+            newWord = options[Math.floor(Math.random() * options.length)];
+        } while (newWord === currentWord);
+        wordHistory.push(currentWord);
+        currentWord = newWord;
+        return currentWord;
+    }
+
+    const wordCountEl = document.getElementById('words');
+    function updateWordCount() {
+        wordCountEl.textContent = `Words: ${wordHistory.length}`;
+    }
+
+    const attempts = [];
+    function updateAccuracy() {
+        const tail = attempts.slice(-10);
+        const accuracy = ((tail.filter(attempt => attempt).length) / tail.length * 100).toFixed(1);
+        document.getElementById('accuracy').textContent = `Accuracy: ${accuracy}%`;
+    }
+
+    const messageEl = document.getElementById('message');
+    let messageTimeout;
+    function showMessage(message) {
+        messageEl.textContent = message;
+        clearTimeout(messageTimeout);
+        messageTimeout = setTimeout(() => {
+            messageEl.textContent = "";
+        }, message.length * 100 + 1000);
+    }
+
+    function updateHint(key) {
+        const keys = document.querySelectorAll('#keyboard kbd');
+        const isUpperCase = key === key.toUpperCase();
+        keys.forEach(kbd => {
+            if (kbd.textContent.toLowerCase() === key.toLowerCase()) {
+                kbd.classList.add('hint');
+            } else {
+                kbd.classList.remove('hint');
+            }
+            if (kbd.textContent === "shift") {
+                if (isUpperCase) {
+                    kbd.classList.add('hint');
+                } else {
+                    kbd.classList.remove('hint');
+                }
+            }
+        });
+    }
+    updateHint(currentWord[0]);
+
+    document.body.addEventListener('keydown', (event) => {
+        const currentSpan = wordEl.querySelector('[data-status="current"]');
+        if (!currentSpan) return;
+
+        if (event.key === "Shift" || event.key === "CapsLock") {
+            // Ignore shift and caps lock keys
+            return;
+        }
+
+        if (event.key === currentSpan.textContent) {
+            attempts.push(true);
+            currentSpan.dataset.status = "correct";
+            currentSpan.removeAttribute("data-wrong");
+            const nextSpan = currentSpan.nextElementSibling;
+            if (nextSpan) {
+                nextSpan.dataset.status = "current";
+                updateHint(nextSpan.textContent);
+            } else {
+                const nextWord = getNewWord();
+                renderWord(nextWord);
+                updateHint(nextWord[0]);
+                updateWordCount();
+                messageEl.textContent = "";
+                wordHistory.length && wordHistory.length % 6 === 0 && showMessage("Good working!");
+            }
+        } else {
+            if (event.key === currentSpan.textContent.toUpperCase() || event.key === currentSpan.textContent.toLowerCase()) {
+                showMessage("Close! Pay attention to capitalization.");
+            }
+            attempts.push(false);
+            currentSpan.dataset.wrong = true;
+            setTimeout(() => {
+                currentSpan.removeAttribute("data-wrong");
+            }, 200);
+        }
+        updateAccuracy();
+    });
+</script>
+
+</html>
