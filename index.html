@@ -511,6 +511,8 @@
         const currentSpan = wordEl.querySelector('[data-status="current"]');
         if (!currentSpan) return;
 
+        event.preventDefault();
+
         if (event.key === "Shift" || event.key === "CapsLock") {
             // Ignore shift and caps lock keys
             return;
